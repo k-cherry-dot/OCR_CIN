@@ -25,3 +25,5 @@ backend/.flaskenv
 
 environment.yml
 
+/frontend/
+
