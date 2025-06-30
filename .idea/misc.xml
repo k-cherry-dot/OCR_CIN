@@ -3,4 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="OCR_CIN" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="OCR_CIN_v2" project-jdk-type="Python SDK" />
 </project>

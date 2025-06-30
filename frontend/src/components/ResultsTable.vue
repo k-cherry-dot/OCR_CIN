@@ -1,45 +1,56 @@
 <template>
-  <div class="overflow-auto bg-white shadow rounded-lg p-4">
-    <h2 class="text-xl font-semibold mb-4">Results</h2>
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
+  <div>
+    <h2 class="text-xl font-semibold mb-2">Results</h2>
+    <table class="min-w-full table-auto mb-4">
+      <thead>
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Field
-          </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Value
-          </th>
+          <th>Field</th><th>Extracted</th><th>Expected</th><th>Match?</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-100">
-        <tr v-for="(val, key) in results" :key="key">
-          <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-700">{{ key }}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ val }}</td>
+      <tbody>
+        <tr v-for="(val, key) in tableData" :key="key">
+          <td>{{ key }}</td>
+          <td>{{ val.extracted }}</td>
+          <td>{{ val.expected }}</td>
+          <td>{{ val.match }}</td>
         </tr>
       </tbody>
     </table>
+    <button v-if="excelUrl" @click="downloadExcel" class="px-4 py-2">Download Excel</button>
   </div>
 </template>
 
 <script>
-import { onMounted, ref } from 'vue';
 import axios from 'axios';
+import { ref, watchEffect } from 'vue';
 
 export default {
   props: ['uploadId'],
   setup(props) {
-    const results = ref({});
+    const tableData = ref({});
+    const excelUrl = ref('');
 
-    onMounted(() => {
-      axios
-        .get(`/api/results/${props.uploadId}`)
+    watchEffect(() => {
+      if (!props.uploadId) return;
+      axios.get(`/api/results/${props.uploadId}`)
         .then(res => {
-          results.value = res.data;
+          const d = res.data.data;
+          tableData.value = {
+            card_number:   { extracted: d.extracted.card_number,   expected: d.expected.card_number,   match: d.matches.card_number },
+            surname:       { extracted: d.extracted.surname,       expected: d.expected.surname,       match: d.matches.surname },
+            given_names:   { extracted: d.extracted.given_names,   expected: d.expected.given_names,   match: d.matches.given_names },
+            date_of_birth: { extracted: d.extracted.date_of_birth, expected: d.expected.date_of_birth, match: d.matches.date_of_birth },
+            gender:        { extracted: d.extracted.gender,        expected: d.expected.gender,        match: d.matches.gender }
+          };
+          excelUrl.value = res.data.excel_url;
         });
     });
 
-    return { results };
+    function downloadExcel() {
+      window.location = excelUrl.value;
+    }
+
+    return { tableData, excelUrl, downloadExcel };
   }
 };
 </script>
