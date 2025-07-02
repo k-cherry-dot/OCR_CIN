@@ -20,13 +20,10 @@ yarn-error.log*
 
 backend/.env
 backend/.flaskenv
-app/config.py
+
+# ignore your real config file:
+backend/app/config.py
 
 .DS_Store
 
 environment.yml
-
-/frontend/
-
-"backend/app/config.py" 
-"backend/app/config.py" 
