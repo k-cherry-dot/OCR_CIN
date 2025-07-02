@@ -28,3 +28,4 @@ environment.yml
 
 /frontend/
 
+"backend/app/config.py" 
