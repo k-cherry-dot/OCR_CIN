@@ -1,15 +1,16 @@
 <template>
-  <footer class="bg-gray-900 text-gray-300 p-4 text-sm text-center">
-    <p>
-      © 2025 École Centrale Casablanca<br>
-      27, Rue Ibn Tachfine, Casablanca – Maroc<br>
-      Tél. +212 (0) 522 26 83 00
-    </p>
+  <footer class="footer">
+    <p>© 2025 Ecole Centrale Casablanca | All Rights Reserved</p>
   </footer>
 </template>
 
-<script>
-export default {
-  name: 'Footer'
+<style scoped>
+.footer {
+  text-align: center;
+  padding: 10px;
+  font-size: 0.9rem;
+  background-color: #333;
+  color: #fff;
+  margin-top: 50px;
 }
-</script>
+</style>
