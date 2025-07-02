@@ -20,7 +20,7 @@ yarn-error.log*
 
 backend/.env
 backend/.flaskenv
-backend/app/config.py
+app/config.py
 
 .DS_Store
 
