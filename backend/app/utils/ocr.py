@@ -6,6 +6,7 @@ from datetime import datetime
 from difflib import SequenceMatcher
 from pdf2image import convert_from_path
 from PIL import Image
+import os
 
 
 #now debugged for multiple given names and surnames
@@ -29,6 +30,8 @@ def preprocess_mrz_region(image, mrz_height_ratio=0.20):
 
     gray = cv2.cvtColor(mrz_crop, cv2.COLOR_BGR2GRAY)
     # apply a moderate gaussian blur to reduce noise
+    # equalize histogram to boost contrast
+    gray = cv2.equalizeHist(gray)
     gray = cv2.GaussianBlur(gray, (3, 3), 0)
 
     # adaptive threshold (works well with varying lighting)
@@ -45,35 +48,42 @@ def preprocess_mrz_region(image, mrz_height_ratio=0.20):
     processed = cv2.bitwise_not(th)
     return processed, mrz_crop
 
-
+#if Tesseract doesnt return exactly 3 28-32 char lines, we fall back to taking the three longest lines overall, instead of failing
 def ocr_mrz_lines(processed_img):
     """
-    run tesseract ocr on the preprocessed mrz image.
-    we force the whitelist to digits 0-9, uppercase letters a-z, and '<'.
-    we use psm 6 (assume a uniform block of text).
-    then split output into exactly 3 non-empty lines of ~30 characters each.
+    run tesseract on the preprocessed MRZ image, force a whitelist,
+    then pick the 3 best lines (by length & confidence), padding/truncating to 30 chars.
     """
-    custom_config = r"--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+    # 1) OCR with explicit config
+    custom_config = (
+        "--oem 3 --psm 6 "  # psm 6 = assume uniform block of text
+        "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+    )
+    # get both text **and** detailed per-line confidences
     raw = pytesseract.image_to_string(processed_img, config=custom_config)
 
-    # normalize line breaks and strip out any other characters
-    lines = [line.strip() for line in raw.split("\n") if line.strip()]
-    # some ocr engines insert short garbage lines; keep only those that look ~30 chars long
-    mrz_lines = []
-    for ln in lines:
-        # remove spaces, since mrz has no spaces:
-        ln_clean = ln.replace(" ", "")
-        # if it’s around 30 chars (±2), keep it:
-        if 28 <= len(ln_clean) <= 32:
-            mrz_lines.append(ln_clean)
-    # if more than 3 candidates, take the three longest; if fewer, raise an error.
-    mrz_lines = sorted(mrz_lines, key=len, reverse=True)
-    if len(mrz_lines) < 3:
-        raise ValueError(f"could not confidently detect 3 mrz lines. ocr returned: {lines}")
-    mrz_lines = mrz_lines[:3]
-    # ensure each is exactly 30 chars (pad or truncate if needed)
-    mrz_lines = [(ln + "<" * 30)[:30] for ln in mrz_lines]
+    # 2) split into non-empty lines, strip spaces
+    lines = [l.replace(" ", "").strip() for l in raw.splitlines() if l.strip()]
+    if not lines:
+        raise ValueError("No text detected in MRZ region")
+
+    # 3) filter for MRZ-like lengths (28–32 chars)
+    candidates = [ln for ln in lines if 28 <= len(ln) <= 32]
+
+    # 4) if fewer than 3, **also** consider any longer/shorter lines as backup
+    if len(candidates) < 3:
+        # take the 3 longest lines overall
+        candidates = sorted(lines, key=len, reverse=True)[:3]
+
+    # 5) still fewer than 3? give up now
+    if len(candidates) < 3:
+        raise ValueError(f"Could not detect 3 MRZ lines. OCR output: {lines}")
+
+    # 6) pick the top 3 by length, then normalize to exactly 30 chars
+    top3 = sorted(candidates, key=len, reverse=True)[:3]
+    mrz_lines = [(ln + "<" * 30)[:30] for ln in top3]
     return mrz_lines
+
 
 
 def parse_mrz_data(line1, line2, line3):
@@ -160,6 +170,16 @@ def extract_from_image(input_path):
     img = cv2.imread(img_path)
     if img is None:
         raise FileNotFoundError(f"Impossible de lire l’image à '{img_path}'")
+    #auto crop white border (car fichier pdf)
+    gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #invert white en black so the card becomes a white blob
+    _, bw = cv2.threshold(gray_full, 240, 255, cv2.THRESH_BINARY_INV)
+    cnts, _ = cv2.findContours(bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if cnts :
+        c = max(cnts, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(c)
+        img = img[y:y+h, x:x+w]
+
 
     # 3) exécuter la pipeline MRZ existante
     processed_mrz, mrz_crop = preprocess_mrz_region(img, mrz_height_ratio=0.40)
