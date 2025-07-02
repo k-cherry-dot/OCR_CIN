@@ -27,3 +27,4 @@ backend/config.py
 environment.yml
 
 
+"backend/app/config.py" 
