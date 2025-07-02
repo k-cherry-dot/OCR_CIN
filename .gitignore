@@ -20,6 +20,8 @@ yarn-error.log*
 
 backend/.env
 backend/.flaskenv
+backend/back1.jpg
+backend/master_list.csv
 
 # ignore your real config file:
 backend/app/config.py
@@ -27,3 +29,5 @@ backend/app/config.py
 .DS_Store
 
 environment.yml
+"backend/back1.jpg" 
+"backend/master_list.csv" 
